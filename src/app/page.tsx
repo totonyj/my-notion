@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-//  새로운 치트키 코드 (여기로 덮어씌워 주세요!)
+// 수파베이스 연결 통로 (치트키)
 const supabaseUrl = 'https://kzyqouohgrqlqpwnehzf.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eXFvdW9oZ3JxbHFwd25laHpmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA2MjU3NjEsImV4cCI6MjA5NjIwMTc2MX0.0XOFLlvl95b7vF5JYQWtUsc3t01BYstkEebO4MiKRao';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -14,55 +14,65 @@ export default function Home() {
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
+  // [기능 1] 처음 켰을 때 저장된 데이터 불러오기
   useEffect(() => {
     async function fetchDocument() {
-      const { data, error } = await supabase
-        .from('documents')
-        .select('*')
-        .order('id', { ascending: false })
-        .limit(1);
+      try {
+        const { data, error } = await supabase
+          .from('documents')
+          .select('*')
+          .order('id', { ascending: false })
+          .limit(1);
 
-      if (data && data.length > 0) {
-        setDocId(data[0].id);
-        setTitle(data[0].title || '');
-        setContent(data[0].content || '');
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          setDocId(data[0].id);
+          setTitle(data[0].title || '');
+          setContent(data[0].content || '');
+        }
+      } catch (err) {
+        console.error('데이터 불러오기 실패:', err);
       }
     }
     fetchDocument();
   }, []);
 
+  // [기능 2] 글 저장하기 (철벽 방어막 적용)
   const handleSave = async () => {
-    setIsSaving(true);
+    setIsSaving(true); // 버튼을 '저장 중...'으로 변경
 
-    if (docId) {
-      // 수정할 때 에러가 나면 알려줌
-      const { error } = await supabase
-        .from('documents')
-        .update({ title, content })
-        .eq('id', docId);
+    try {
+      if (docId) {
+        // 기존 글 수정
+        const { error } = await supabase
+          .from('documents')
+          .update({ title, content })
+          .eq('id', docId);
 
-      if (error) {
-        alert('❌ 수정 실패: ' + error.message);
-      } else {
+        if (error) throw error;
         alert('수파베이스에 안전하게 수정되었습니다! 🎉');
-      }
-    } else {
-      // 처음 저장할 때 에러가 나면 알려줌
-      const { data, error } = await supabase
-        .from('documents')
-        .insert([{ title, content }])
-        .select();
+      } else {
+        // 첫 글 저장
+        const { data, error } = await supabase
+          .from('documents')
+          .insert([{ title, content }])
+          .select();
 
-      if (error) {
-        alert('❌ 저장 실패: ' + error.message);
-        console.error(error);
-      } else if (data && data.length > 0) {
-        setDocId(data[0].id);
-        alert('수파베이스 클라우드에 안전하게 첫 저장되었습니다! 🎉');
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setDocId(data[0].id);
+          alert('수파베이스 클라우드에 안전하게 첫 저장되었습니다! 🎉');
+        }
       }
+    } catch (error: any) {
+      // 💥 인터넷 끊김, 광고 차단기 차단 등 온갖 하드웨어 에러까지 다 잡아내서 팝업을 띄워줍니다.
+      alert('❌ 시스템 에러 발생: ' + (error.message || '인터넷 연결이나 광고 차단기를 확인해주세요.'));
+      console.error(error);
+    } finally {
+      // ✨ 성공하든 완전히 실패해서 튕기든, 이 자리는 무조건 실행되어 버튼이 원래대로 돌아옵니다!
+      setIsSaving(false);
     }
-
-    setIsSaving(false);
   };
 
   return (
